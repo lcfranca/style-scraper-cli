@@ -1,0 +1,20 @@
+[package]
+name = "style-scraper-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "style-scraper"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+style-scraper-core = { path = "../style-scraper-core" }
+style-scraper-probe-runner = { path = "../style-scraper-probe-runner" }
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

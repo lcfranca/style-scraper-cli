@@ -1,0 +1,12 @@
+[package]
+name = "style-scraper-probe-runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+style-scraper-core = { path = "../style-scraper-core" }
+thiserror.workspace = true

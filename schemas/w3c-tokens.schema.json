@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/w3c-tokens.schema.json",
+  "title": "W3C-compatible style-scraper tokens",
+  "type": "object",
+  "properties": {
+    "$description": { "type": "string" },
+    "color": { "type": "object" },
+    "typography": { "type": "object" },
+    "fontFamily": { "type": "object" },
+    "fontSize": { "type": "object" },
+    "fontWeight": { "type": "object" },
+    "lineHeight": { "type": "object" },
+    "letterSpacing": { "type": "object" },
+    "spacing": { "type": "object" },
+    "sizing": { "type": "object" },
+    "radius": { "type": "object" },
+    "border": { "type": "object" },
+    "shadow": { "type": "object" },
+    "opacity": { "type": "object" },
+    "zIndex": { "type": "object" },
+    "motion": { "type": "object" },
+    "breakpoint": { "type": "object" },
+    "asset": { "type": "object" }
+  },
+  "additionalProperties": true
+}

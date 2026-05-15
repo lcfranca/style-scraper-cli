@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/style-scraper-output.schema.json",
+  "title": "style-scraper Agent Output",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "tool",
+    "capture",
+    "evidence",
+    "tokens",
+    "morphology",
+    "accessibility",
+    "diagnostics",
+    "reproducibility"
+  ],
+  "properties": {
+    "schema_version": { "const": "style-scraper-output.v1" },
+    "tool": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "const": "style-scraper" },
+        "version": { "type": "string" }
+      }
+    },
+    "capture": { "type": "object" },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "observed_nodes",
+        "observed_styles",
+        "observed_layout",
+        "observed_accessibility",
+        "screenshots"
+      ]
+    },
+    "tokens": { "$ref": "w3c-tokens.schema.json" },
+    "morphology": { "$ref": "morphology.schema.json" },
+    "accessibility": { "type": "object" },
+    "diagnostics": { "$ref": "diagnostics.schema.json" },
+    "reproducibility": {
+      "type": "object",
+      "required": [
+        "style_scraper_version",
+        "probe_runtime",
+        "browser",
+        "viewport",
+        "device_scale_factor",
+        "color_scheme",
+        "input_url",
+        "capture_hash",
+        "analysis_hash"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

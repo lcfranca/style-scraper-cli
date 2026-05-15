@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/errors.schema.json",
+  "title": "style-scraper structured error",
+  "type": "object",
+  "required": ["error"],
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": ["code", "message", "phase", "recoverable"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "examples": [
+            "BUN_NOT_FOUND",
+            "PLAYWRIGHT_NOT_FOUND",
+            "BROWSER_NOT_INSTALLED",
+            "DEPENDENCY_INSTALL_FAILED",
+            "UNSUPPORTED_AUTO_INSTALL",
+            "NAVIGATION_TIMEOUT",
+            "SCHEMA_VALIDATION_FAILURE"
+          ]
+        },
+        "message": { "type": "string" },
+        "phase": { "type": "string" },
+        "recoverable": { "type": "boolean" },
+        "details": { "type": "object" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

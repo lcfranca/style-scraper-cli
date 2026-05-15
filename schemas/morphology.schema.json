@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/morphology.schema.json",
+  "title": "style-scraper Atomic Design Morphology",
+  "type": "object",
+  "required": ["atoms", "molecules", "organisms", "templates", "pages", "gestalt_clusters"],
+  "properties": {
+    "atoms": { "type": "array", "items": { "$ref": "#/$defs/unit" } },
+    "molecules": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "organisms": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "templates": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "pages": { "type": "array", "items": { "$ref": "#/$defs/group" } },
+    "gestalt_clusters": { "type": "array" }
+  },
+  "$defs": {
+    "unit": {
+      "type": "object",
+      "required": ["unit_type", "id", "kind", "signature", "evidence", "confidence"],
+      "properties": {
+        "unit_type": { "const": "atom" },
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "signature": { "type": "string" },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "tokens": { "type": "object" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "group": {
+      "type": "object",
+      "required": ["unit_type", "id", "kind", "children", "evidence", "confidence"],
+      "properties": {
+        "unit_type": { "type": "string" },
+        "id": { "type": "string" },
+        "kind": { "type": "string" },
+        "children": { "type": "array", "items": { "type": "string" } },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "dom_node_ids": { "type": "array", "items": { "type": "string" } },
+        "aom_roles": { "type": "array", "items": { "type": "string" } },
+        "layout_box_ids": { "type": "array", "items": { "type": "string" } },
+        "computed_style_ids": { "type": "array", "items": { "type": "string" } },
+        "gestalt": { "type": "object" }
+      }
+    }
+  },
+  "additionalProperties": false
+}
