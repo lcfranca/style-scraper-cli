@@ -26,6 +26,81 @@ style-scraper extract --url https://example.com --scope page --detail all --form
 
 `stdout` is reserved for strict machine-readable output. Diagnostics and failures go to `stderr`.
 
+## Local Workspace Install
+
+During development, install the Rust CLI into a workspace-local binary directory and expose it through `PATH` without requiring a global system install:
+
+```bash
+mkdir -p .bin && \
+  cargo build --release -p style-scraper-cli && \
+  ln -sf "$(pwd)/target/release/style-scraper-cli" .bin/style-scraper && \
+  export PATH="$(pwd)/.bin:$PATH" && \
+  style-scraper --help
+```
+
+For a persistent shell setup inside this workspace, add the workspace-local `.bin` directory to your shell profile or use a project environment manager such as `direnv`.
+
+Example with `direnv`:
+
+```bash
+printf 'export PATH="$PWD/.bin:$PATH"\n' > .envrc && \
+  direnv allow
+```
+
+After this, developers can run:
+
+```bash
+style-scraper extract --url https://example.com --scope page --detail all --format json
+```
+
+## Developer Install Script
+
+Use this command to create a simple installer script for other developers working in the repository:
+
+```bash
+mkdir -p scripts && cat > scripts/install-local.sh <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+BIN_DIR="$ROOT_DIR/.bin"
+TARGET_BIN="$ROOT_DIR/target/release/style-scraper-cli"
+LINK_BIN="$BIN_DIR/style-scraper"
+
+cd "$ROOT_DIR"
+mkdir -p "$BIN_DIR"
+
+cargo build --release -p style-scraper-cli
+ln -sf "$TARGET_BIN" "$LINK_BIN"
+
+cat <<MSG
+style-scraper installed for this workspace.
+
+Binary symlink:
+  $LINK_BIN
+
+To use it in the current shell, run:
+  export PATH="$BIN_DIR:\$PATH"
+
+Or enable it automatically with direnv:
+  printf 'export PATH="\$PWD/.bin:\$PATH"\\n' > .envrc
+  direnv allow
+
+Test:
+  style-scraper --help
+MSG
+EOF
+chmod +x scripts/install-local.sh
+```
+
+Then run:
+
+```bash
+./scripts/install-local.sh
+export PATH="$(pwd)/.bin:$PATH"
+style-scraper --help
+```
+
 ## Dependency Bootstrap
 
 The Rust binary is the primary executable. Browser capture also requires Bun, the probe dependencies, and a Playwright browser. By default, `style-scraper extract` and `style-scraper capture` auto-install missing probe dependencies into the workspace, using pinned versions from [probe/requirements.json](/Users/lucasfranca/Workspace/style-scraper-cli/probe/requirements.json):
