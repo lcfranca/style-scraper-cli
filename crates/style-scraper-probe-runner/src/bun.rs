@@ -418,6 +418,10 @@ fn deps_root(config: &CaptureConfig) -> PathBuf {
         .as_ref()
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(".style-scraper/deps"));
+    absolute_or_current_dir(path)
+}
+
+fn absolute_or_current_dir(path: PathBuf) -> PathBuf {
     if path.is_absolute() {
         path
     } else {
@@ -459,11 +463,13 @@ struct ProbeTempFiles {
 
 impl ProbeTempFiles {
     fn new(config: &CaptureConfig) -> Result<Self, ProbeRunnerError> {
-        let base = config
-            .artifact_dir
-            .as_ref()
-            .map(PathBuf::from)
-            .unwrap_or_else(std::env::temp_dir);
+        let base = absolute_or_current_dir(
+            config
+                .artifact_dir
+                .as_ref()
+                .map(PathBuf::from)
+                .unwrap_or_else(std::env::temp_dir),
+        );
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|duration| duration.as_nanos())

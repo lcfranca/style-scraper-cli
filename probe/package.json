@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "capture": "bun run src/capture.ts",
-    "check": "bunx tsc --noEmit"
+    "check": "bun x tsc --noEmit"
   },
   "dependencies": {
     "playwright": "1.45.3",
