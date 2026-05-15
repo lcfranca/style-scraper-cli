@@ -47,6 +47,8 @@ pub struct PageFacts {
     pub url: String,
     #[serde(default)]
     pub title: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub viewport: Option<ViewportFacts>,
     #[serde(default)]
     pub dom: DomFacts,
     #[serde(default)]
@@ -57,6 +59,12 @@ pub struct PageFacts {
     pub accessibility: AccessibilityFacts,
     #[serde(default)]
     pub screenshots: Vec<ScreenshotFacts>,
+    #[serde(default)]
+    pub pseudo_elements: Vec<RawPseudoElement>,
+    #[serde(default)]
+    pub assets: Vec<RawAsset>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stylesheet_provenance: Option<Value>,
     #[serde(default)]
     pub state_deltas: Vec<RawStateDelta>,
 }
@@ -107,6 +115,10 @@ pub struct RawComputedStyle {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background_color: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background_image: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mask_image: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_family: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font_size: Option<String>,
@@ -148,6 +160,8 @@ pub struct RawComputedStyle {
     pub animation_duration: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transform: Option<String>,
+    #[serde(default)]
+    pub css_variables: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
@@ -222,11 +236,55 @@ pub struct RawAccessibilityNode {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ScreenshotFacts {
     pub id: String,
+    #[serde(rename = "type", alias = "screenshot_type")]
     pub screenshot_type: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     pub sha256: String,
+    #[serde(default)]
+    pub width: u32,
+    #[serde(default)]
+    pub height: u32,
+    #[serde(default = "default_device_scale_factor")]
+    pub device_scale_factor: f64,
     pub viewport: ViewportFacts,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_node_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RawPseudoElement {
+    pub node_id: String,
+    pub pseudo: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+    #[serde(default)]
+    pub computed_style: BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub layout_estimate: Option<RawLayoutBox>,
+    #[serde(default)]
+    pub visible: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RawAsset {
+    pub id: String,
+    pub kind: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_node_id: Option<String>,
+    pub url_hash: String,
+    #[serde(default)]
+    pub resolved_url_redacted: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub intrinsic_size: Option<RawAssetIntrinsicSize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RawAssetIntrinsicSize {
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -237,4 +295,16 @@ pub struct ProbeDiagnostic {
     pub phase: String,
     #[serde(default)]
     pub severity: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recoverable: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timings: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_after: Option<String>,
 }

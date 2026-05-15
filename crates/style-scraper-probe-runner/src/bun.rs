@@ -1,6 +1,7 @@
 use crate::command::{CaptureConfig, ProbeRunner};
 use crate::errors::ProbeRunnerError;
 use std::fs::{self, File};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -53,6 +54,7 @@ impl ProbeRunner for BunProbeRunner {
         self.ensure_playwright_browser_available(&bun_binary, config)?;
 
         let temp = ProbeTempFiles::new(config)?;
+        emit_progress("runner", "starting Bun probe", &config.url);
         let mut command = Command::new(&bun_binary);
         command
             .current_dir(&self.probe_dir)
@@ -68,21 +70,43 @@ impl ProbeRunner for BunProbeRunner {
             .arg(&config.wait)
             .arg("--timeout-ms")
             .arg(config.timeout_ms.to_string())
+            .arg("--navigation-timeout-ms")
+            .arg(config.navigation_timeout_ms.to_string())
+            .arg("--capture-timeout-ms")
+            .arg(config.capture_timeout_ms.to_string())
+            .arg("--stability-window-ms")
+            .arg(config.stability_window_ms.to_string())
+            .arg("--max-stability-wait-ms")
+            .arg(config.max_stability_wait_ms.to_string())
+            .arg("--resource-budget")
+            .arg(&config.resource_budget)
             .arg("--output-file")
             .arg(&temp.raw_path)
             .env("PLAYWRIGHT_BROWSERS_PATH", playwright_browsers_dir(config));
 
+        if let Some(selector) = &config.wait_for_selector {
+            command.arg("--wait-for-selector").arg(selector);
+        }
         if !config.states.is_empty() {
             command.arg("--states").arg(config.states.join(","));
         }
         if config.include_screenshots {
             command.arg("--include-screenshots");
         }
+        command.arg("--screenshot").arg(&config.screenshot);
         if let Some(auth_state) = &config.auth_state {
             command.arg("--auth-state").arg(auth_state);
         }
+        let generated_screenshot_dir;
         if let Some(screenshot_dir) = &config.screenshot_dir {
-            command.arg("--screenshot-dir").arg(screenshot_dir);
+            command
+                .arg("--screenshot-dir")
+                .arg(absolute_or_current_dir(PathBuf::from(screenshot_dir)));
+        } else if config.include_screenshots {
+            generated_screenshot_dir = default_screenshot_dir(config);
+            command
+                .arg("--screenshot-dir")
+                .arg(generated_screenshot_dir);
         }
         if config.redact_text {
             command.arg("--redact-text");
@@ -108,6 +132,39 @@ impl ProbeRunner for BunProbeRunner {
         if config.no_form_submit {
             command.arg("--no-form-submit");
         }
+        if config.ignore_networkidle_timeout {
+            command.arg("--ignore-networkidle-timeout");
+        }
+        if config.capture_on_timeout {
+            command.arg("--capture-on-timeout");
+        }
+        if config.strict_capture {
+            command.arg("--strict-capture");
+        }
+        if config.safe_capture {
+            command.arg("--safe-capture");
+        }
+        if config.block_third_party {
+            command.arg("--block-third-party");
+        }
+        if config.block_analytics {
+            command.arg("--block-analytics");
+        }
+        if config.block_media {
+            command.arg("--block-media");
+        }
+        if config.block_fonts {
+            command.arg("--block-fonts");
+        }
+        if config.block_images {
+            command.arg("--block-images");
+        }
+        if config.allow_active {
+            command.arg("--allow-active");
+        }
+        if let Some(selector) = &config.click_selector {
+            command.arg("--click-selector").arg(selector);
+        }
 
         let stdout_file = File::create(&temp.stdout_path)
             .map_err(|error| ProbeRunnerError::SpawnFailed(error.to_string()))?;
@@ -121,6 +178,8 @@ impl ProbeRunner for BunProbeRunner {
             .map_err(|error| ProbeRunnerError::SpawnFailed(error.to_string()))?;
 
         let started = Instant::now();
+        let watchdog_timeout_ms = subprocess_watchdog_timeout_ms(config);
+        let mut stderr_offset = 0_usize;
         let status = loop {
             if let Some(status) = child
                 .try_wait()
@@ -129,22 +188,44 @@ impl ProbeRunner for BunProbeRunner {
                 break status;
             }
 
-            if started.elapsed() >= Duration::from_millis(config.timeout_ms) {
+            forward_new_stderr(&temp.stderr_path, &mut stderr_offset);
+
+            if started.elapsed() >= Duration::from_millis(watchdog_timeout_ms) {
                 let _ = child.kill();
                 let _ = child.wait();
+                forward_new_stderr(&temp.stderr_path, &mut stderr_offset);
+                if let Some(raw) = try_read_valid_raw(&temp)? {
+                    emit_progress(
+                        "runner",
+                        "probe watchdog fired, but valid partial RawFacts were recovered",
+                        &config.url,
+                    );
+                    temp.cleanup(config.keep_artifacts);
+                    return Ok(raw);
+                }
                 let stderr = read_lossy(&temp.stderr_path);
                 temp.cleanup(config.keep_artifacts);
                 return Err(ProbeRunnerError::Timeout {
-                    timeout_ms: config.timeout_ms,
+                    timeout_ms: watchdog_timeout_ms,
                     stderr,
                 });
             }
 
-            std::thread::sleep(Duration::from_millis(25));
+            std::thread::sleep(Duration::from_millis(100));
         };
+        forward_new_stderr(&temp.stderr_path, &mut stderr_offset);
 
         if !status.success() {
             let stderr = read_lossy(&temp.stderr_path);
+            if let Some(raw) = try_read_valid_raw(&temp)? {
+                emit_progress(
+                    "runner",
+                    "probe exited non-zero, but valid partial RawFacts were recovered",
+                    &config.url,
+                );
+                temp.cleanup(config.keep_artifacts);
+                return Ok(raw);
+            }
             temp.cleanup(config.keep_artifacts);
             if is_browser_missing_error(&stderr) {
                 return Err(ProbeRunnerError::BrowserNotInstalled);
@@ -161,10 +242,12 @@ impl ProbeRunner for BunProbeRunner {
         let raw_bytes = fs::read(&temp.raw_path)
             .or_else(|_| fs::read(&temp.stdout_path))
             .map_err(|error| ProbeRunnerError::InvalidJson(error.to_string()))?;
-        let raw: RawFacts = serde_json::from_slice(&raw_bytes)
+        let mut raw: RawFacts = serde_json::from_slice(&raw_bytes)
             .map_err(|error| ProbeRunnerError::InvalidJson(error.to_string()))?;
+        relativize_artifact_paths(&mut raw);
         validate_raw_facts(&raw)
             .map_err(|error| ProbeRunnerError::InvalidRawFacts(error.to_string()))?;
+        emit_progress("runner", "Bun probe completed successfully", &config.url);
         temp.cleanup(config.keep_artifacts);
         Ok(raw)
     }
@@ -447,10 +530,84 @@ fn playwright_browsers_dir(config: &CaptureConfig) -> PathBuf {
     deps_root(config).join("playwright-browsers")
 }
 
+fn default_screenshot_dir(config: &CaptureConfig) -> PathBuf {
+    absolute_or_current_dir(
+        config
+            .artifact_dir
+            .as_ref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(".style-scraper/artifacts")),
+    )
+    .join("screenshots")
+}
+
 fn directory_has_entries(path: &Path) -> bool {
     path.read_dir()
         .map(|mut entries| entries.next().is_some())
         .unwrap_or(false)
+}
+
+fn subprocess_watchdog_timeout_ms(config: &CaptureConfig) -> u64 {
+    config
+        .timeout_ms
+        .max(config.capture_timeout_ms)
+        .max(
+            config
+                .navigation_timeout_ms
+                .saturating_add(config.capture_timeout_ms),
+        )
+        .saturating_add(30_000)
+        .max(60_000)
+}
+
+fn emit_progress(phase: &str, message: &str, url: &str) {
+    eprintln!("style-scraper | {phase} | {message} | url={url}");
+}
+
+fn forward_new_stderr(path: &Path, offset: &mut usize) {
+    let Ok(bytes) = fs::read(path) else {
+        return;
+    };
+    if bytes.len() <= *offset {
+        return;
+    }
+    let new = &bytes[*offset..];
+    *offset = bytes.len();
+    let _ = std::io::stderr().write_all(new);
+    if !new.ends_with(b"\n") {
+        let _ = std::io::stderr().write_all(b"\n");
+    }
+}
+
+fn try_read_valid_raw(temp: &ProbeTempFiles) -> Result<Option<RawFacts>, ProbeRunnerError> {
+    let raw_bytes = match fs::read(&temp.raw_path).or_else(|_| fs::read(&temp.stdout_path)) {
+        Ok(bytes) if !bytes.is_empty() => bytes,
+        _ => return Ok(None),
+    };
+    let mut raw: RawFacts = serde_json::from_slice(&raw_bytes)
+        .map_err(|error| ProbeRunnerError::InvalidJson(error.to_string()))?;
+    relativize_artifact_paths(&mut raw);
+    validate_raw_facts(&raw)
+        .map_err(|error| ProbeRunnerError::InvalidRawFacts(error.to_string()))?;
+    Ok(Some(raw))
+}
+
+fn relativize_artifact_paths(raw: &mut RawFacts) {
+    let Ok(cwd) = std::env::current_dir() else {
+        return;
+    };
+    for page in &mut raw.pages {
+        for screenshot in &mut page.screenshots {
+            let Some(path) = screenshot.path.as_deref() else {
+                continue;
+            };
+            let path = PathBuf::from(path);
+            let Ok(relative) = path.strip_prefix(&cwd) else {
+                continue;
+            };
+            screenshot.path = Some(relative.to_string_lossy().to_string());
+        }
+    }
 }
 
 #[derive(Debug)]

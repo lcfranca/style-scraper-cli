@@ -134,7 +134,6 @@ pub fn infer_design_tokens(raw: &RawFacts) -> DesignTokens {
 
             for source in [
                 style.padding.as_deref(),
-                style.margin.as_deref(),
                 style.gap.as_deref(),
                 style.row_gap.as_deref(),
                 style.column_gap.as_deref(),
@@ -149,6 +148,18 @@ pub fn infer_design_tokens(raw: &RawFacts) -> DesignTokens {
                         evidence_id.clone(),
                         "computed-cssom.spacing",
                     );
+                }
+            }
+            if let Some(margin) = style.margin.as_deref() {
+                for value in spacing_values(margin) {
+                    if spacing_token_px(&value).is_some_and(|px| px <= 160.0) {
+                        add_spacing(
+                            &mut spacing_clusters,
+                            value,
+                            evidence_id.clone(),
+                            "computed-cssom.margin-spacing",
+                        );
+                    }
                 }
             }
 
@@ -252,6 +263,10 @@ pub fn infer_design_tokens(raw: &RawFacts) -> DesignTokens {
         motion: motion_tokens(&motion_duration_clusters),
         ..DesignTokens::default()
     }
+}
+
+fn spacing_token_px(value: &str) -> Option<f64> {
+    value.trim().strip_suffix("px")?.parse::<f64>().ok()
 }
 
 fn style_evidence_id(style: &RawComputedStyle) -> String {

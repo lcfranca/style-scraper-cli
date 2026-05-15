@@ -29,9 +29,15 @@
         "severity": {
           "type": "string",
           "enum": ["info", "warning", "error"]
-        }
+        },
+        "recoverable": { "type": "boolean" },
+        "recommended_action": { "type": "string" },
+        "timings": { "type": "object" },
+        "completed": { "type": "object" },
+        "http_status": { "type": "integer" },
+        "retry_after": { "type": "string" }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   },
   "additionalProperties": false

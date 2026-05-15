@@ -16,6 +16,7 @@ pub enum Commands {
     Analyze(AnalyzeArgs),
     Tokens(TokensArgs),
     Diff(DiffArgs),
+    DiffVisual(DiffVisualArgs),
     Validate(ValidateArgs),
     Crawl(CrawlArgs),
 }
@@ -30,18 +31,56 @@ pub struct ExtractArgs {
     pub detail: Detail,
     #[arg(long, value_enum, default_value_t = OutputFormat::Json)]
     pub format: OutputFormat,
+    #[arg(long)]
+    pub safe_capture: bool,
     #[arg(long, default_value = "1440x900")]
     pub viewport: String,
+    #[arg(long, value_delimiter = ',')]
+    pub viewports: Vec<String>,
     #[arg(long, value_enum, default_value_t = ColorScheme::Light)]
     pub color_scheme: ColorScheme,
-    #[arg(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',', default_value = "hover,focus-visible")]
     pub states: Vec<String>,
     #[arg(long)]
     pub include_screenshots: bool,
-    #[arg(long, value_enum, default_value_t = WaitMode::Stable)]
+    #[arg(long, value_enum, default_value_t = ScreenshotMode::Viewport)]
+    pub screenshot: ScreenshotMode,
+    #[arg(long, value_enum, default_value_t = WaitMode::Auto)]
     pub wait: WaitMode,
+    #[arg(long)]
+    pub wait_for_selector: Option<String>,
     #[arg(long, default_value_t = 30_000)]
     pub timeout_ms: u64,
+    #[arg(long, default_value_t = 15_000)]
+    pub navigation_timeout_ms: u64,
+    #[arg(long, default_value_t = 30_000)]
+    pub capture_timeout_ms: u64,
+    #[arg(long, default_value_t = 500)]
+    pub stability_window_ms: u64,
+    #[arg(long, default_value_t = 5_000)]
+    pub max_stability_wait_ms: u64,
+    #[arg(long, default_value_t = true)]
+    pub ignore_networkidle_timeout: bool,
+    #[arg(long, default_value_t = true)]
+    pub capture_on_timeout: bool,
+    #[arg(long)]
+    pub strict_capture: bool,
+    #[arg(long, value_enum, default_value_t = ResourceBudget::Balanced)]
+    pub resource_budget: ResourceBudget,
+    #[arg(long)]
+    pub block_third_party: bool,
+    #[arg(long)]
+    pub block_analytics: bool,
+    #[arg(long)]
+    pub block_media: bool,
+    #[arg(long)]
+    pub block_fonts: bool,
+    #[arg(long)]
+    pub block_images: bool,
+    #[arg(long)]
+    pub allow_active: bool,
+    #[arg(long)]
+    pub click_selector: Option<String>,
     #[arg(long)]
     pub auth_state: Option<String>,
     #[arg(long)]
@@ -84,18 +123,56 @@ pub struct CaptureArgs {
     pub url: String,
     #[arg(long)]
     pub raw_output: Option<String>,
+    #[arg(long)]
+    pub safe_capture: bool,
     #[arg(long, default_value = "1440x900")]
     pub viewport: String,
+    #[arg(long, value_delimiter = ',')]
+    pub viewports: Vec<String>,
     #[arg(long, value_enum, default_value_t = ColorScheme::Light)]
     pub color_scheme: ColorScheme,
-    #[arg(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',', default_value = "hover,focus-visible")]
     pub states: Vec<String>,
     #[arg(long)]
     pub include_screenshots: bool,
-    #[arg(long, value_enum, default_value_t = WaitMode::Stable)]
+    #[arg(long, value_enum, default_value_t = ScreenshotMode::Viewport)]
+    pub screenshot: ScreenshotMode,
+    #[arg(long, value_enum, default_value_t = WaitMode::Auto)]
     pub wait: WaitMode,
+    #[arg(long)]
+    pub wait_for_selector: Option<String>,
     #[arg(long, default_value_t = 30_000)]
     pub timeout_ms: u64,
+    #[arg(long, default_value_t = 15_000)]
+    pub navigation_timeout_ms: u64,
+    #[arg(long, default_value_t = 30_000)]
+    pub capture_timeout_ms: u64,
+    #[arg(long, default_value_t = 500)]
+    pub stability_window_ms: u64,
+    #[arg(long, default_value_t = 5_000)]
+    pub max_stability_wait_ms: u64,
+    #[arg(long, default_value_t = true)]
+    pub ignore_networkidle_timeout: bool,
+    #[arg(long, default_value_t = true)]
+    pub capture_on_timeout: bool,
+    #[arg(long)]
+    pub strict_capture: bool,
+    #[arg(long, value_enum, default_value_t = ResourceBudget::Balanced)]
+    pub resource_budget: ResourceBudget,
+    #[arg(long)]
+    pub block_third_party: bool,
+    #[arg(long)]
+    pub block_analytics: bool,
+    #[arg(long)]
+    pub block_media: bool,
+    #[arg(long)]
+    pub block_fonts: bool,
+    #[arg(long)]
+    pub block_images: bool,
+    #[arg(long)]
+    pub allow_active: bool,
+    #[arg(long)]
+    pub click_selector: Option<String>,
     #[arg(long)]
     pub auth_state: Option<String>,
     #[arg(long)]
@@ -160,6 +237,22 @@ pub struct DiffArgs {
     pub before: String,
     #[arg(long)]
     pub after: String,
+    #[arg(long, default_value = "-")]
+    pub output: String,
+    #[arg(long)]
+    pub pretty: bool,
+}
+
+#[derive(Debug, Clone, Parser)]
+pub struct DiffVisualArgs {
+    #[arg(long)]
+    pub before: String,
+    #[arg(long)]
+    pub after: String,
+    #[arg(long, value_enum, default_value_t = OutputFormat::Json)]
+    pub format: OutputFormat,
+    #[arg(long, default_value_t = 0.02)]
+    pub tolerance: f64,
     #[arg(long, default_value = "-")]
     pub output: String,
     #[arg(long)]
@@ -256,6 +349,7 @@ pub enum OutputFormat {
     CssVars,
     Tailwind,
     ReportJson,
+    ReconstructionJson,
 }
 
 impl OutputFormat {
@@ -267,6 +361,24 @@ impl OutputFormat {
             Self::CssVars => "css-vars",
             Self::Tailwind => "tailwind",
             Self::ReportJson => "report-json",
+            Self::ReconstructionJson => "reconstruction-json",
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, ValueEnum)]
+pub enum ScreenshotMode {
+    Viewport,
+    FullPage,
+    Elements,
+}
+
+impl ScreenshotMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Viewport => "viewport",
+            Self::FullPage => "full-page",
+            Self::Elements => "elements",
         }
     }
 }
@@ -292,6 +404,8 @@ pub enum WaitMode {
     Load,
     Networkidle,
     Stable,
+    Selector,
+    Auto,
 }
 
 impl WaitMode {
@@ -301,6 +415,25 @@ impl WaitMode {
             Self::Load => "load",
             Self::Networkidle => "networkidle",
             Self::Stable => "stable",
+            Self::Selector => "selector",
+            Self::Auto => "auto",
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, ValueEnum)]
+pub enum ResourceBudget {
+    Safe,
+    Balanced,
+    Full,
+}
+
+impl ResourceBudget {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Safe => "safe",
+            Self::Balanced => "balanced",
+            Self::Full => "full",
         }
     }
 }

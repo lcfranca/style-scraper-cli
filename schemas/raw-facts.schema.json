@@ -50,6 +50,7 @@
       "properties": {
         "url": { "type": "string" },
         "title": { "type": "string" },
+        "viewport": { "$ref": "#/$defs/viewport" },
         "dom": {
           "type": "object",
           "required": ["nodes"],
@@ -104,6 +105,27 @@
           "type": "array",
           "items": { "$ref": "#/$defs/screenshot" },
           "default": []
+        },
+        "pseudo_elements": {
+          "type": "array",
+          "items": { "type": "object" },
+          "default": []
+        },
+        "assets": {
+          "type": "array",
+          "items": { "type": "object" },
+          "default": []
+        },
+        "stylesheet_provenance": {
+          "type": "object",
+          "properties": {
+            "stylesheets": { "type": "array" },
+            "css_variables": { "type": "array" },
+            "font_faces": { "type": "array" },
+            "media_queries": { "type": "array" },
+            "matched_rules": { "type": "array" }
+          },
+          "additionalProperties": true
         }
       },
       "additionalProperties": false
@@ -137,6 +159,8 @@
         "position": { "type": "string" },
         "color": { "type": "string" },
         "background_color": { "type": "string" },
+        "background_image": { "type": "string" },
+        "mask_image": { "type": "string" },
         "font_family": { "type": "string" },
         "font_size": { "type": "string" },
         "font_weight": { "type": "string" },
@@ -157,7 +181,11 @@
         "transition_duration": { "type": "string" },
         "transition_timing_function": { "type": "string" },
         "animation_duration": { "type": "string" },
-        "transform": { "type": "string" }
+        "transform": { "type": "string" },
+        "css_variables": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
       },
       "additionalProperties": false
     },
@@ -218,12 +246,16 @@
     },
     "screenshot": {
       "type": "object",
-      "required": ["id", "screenshot_type", "sha256", "viewport"],
+      "required": ["id", "type", "sha256", "viewport"],
       "properties": {
         "id": { "type": "string" },
-        "screenshot_type": { "type": "string" },
+        "type": { "type": "string" },
         "path": { "type": "string" },
         "sha256": { "type": "string" },
+        "width": { "type": "integer", "minimum": 0 },
+        "height": { "type": "integer", "minimum": 0 },
+        "device_scale_factor": { "type": "number" },
+        "target_node_id": { "type": "string" },
         "viewport": { "$ref": "#/$defs/viewport" }
       },
       "additionalProperties": false
@@ -235,9 +267,15 @@
         "code": { "type": "string" },
         "message": { "type": "string" },
         "phase": { "type": "string" },
-        "severity": { "type": "string" }
+        "severity": { "type": "string" },
+        "recoverable": { "type": "boolean" },
+        "recommended_action": { "type": "string" },
+        "timings": { "type": "object" },
+        "completed": { "type": "object" },
+        "http_status": { "type": "integer" },
+        "retry_after": { "type": "string" }
       },
-      "additionalProperties": false
+      "additionalProperties": true
     }
   }
 }

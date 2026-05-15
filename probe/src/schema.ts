@@ -12,8 +12,27 @@ export const CaptureRequestSchema = z.object({
   colorScheme: z.enum(["light", "dark"]).default("light"),
   states: z.array(z.string()).default([]),
   includeScreenshots: z.boolean().default(false),
-  wait: z.enum(["domcontentloaded", "load", "networkidle", "stable"]).default("stable"),
+  screenshot: z.enum(["viewport", "full-page", "elements"]).default("viewport"),
+  wait: z.enum(["domcontentloaded", "load", "networkidle", "stable", "selector", "auto"]).default("auto"),
+  waitForSelector: z.string().optional(),
   timeoutMs: z.number().int().positive().default(30000),
+  navigationTimeoutMs: z.number().int().positive().default(15000),
+  captureTimeoutMs: z.number().int().positive().default(30000),
+  stabilityWindowMs: z.number().int().positive().default(500),
+  maxStabilityWaitMs: z.number().int().positive().default(5000),
+  ignoreNetworkidleTimeout: z.boolean().default(true),
+  captureOnTimeout: z.boolean().default(true),
+  strictCapture: z.boolean().default(false),
+  safeCapture: z.boolean().default(false),
+  resourceBudget: z.enum(["safe", "balanced", "full"]).default("balanced"),
+  blockThirdParty: z.boolean().default(false),
+  blockAnalytics: z.boolean().default(false),
+  blockMedia: z.boolean().default(false),
+  blockFonts: z.boolean().default(false),
+  blockImages: z.boolean().default(false),
+  blockDownloads: z.boolean().default(true),
+  allowActive: z.boolean().default(false),
+  clickSelector: z.string().optional(),
   authState: z.string().optional(),
   screenshotDir: z.string().optional(),
   outputFile: z.string().optional(),
@@ -44,6 +63,7 @@ export const RawFactsSchema = z.object({
   pages: z.array(z.object({
     url: z.string(),
     title: z.string(),
+    viewport: ViewportSchema.optional(),
     dom: z.object({ nodes: z.array(z.unknown()) }),
     cssom: z.object({ computed_styles: z.array(z.unknown()) }),
     layout: z.object({ boxes: z.array(z.unknown()) }),
@@ -52,6 +72,9 @@ export const RawFactsSchema = z.object({
       tree: z.unknown().optional()
     }),
     screenshots: z.array(z.unknown()).default([]),
+    pseudo_elements: z.array(z.unknown()).default([]),
+    assets: z.array(z.unknown()).default([]),
+    stylesheet_provenance: z.unknown().optional(),
     state_deltas: z.array(z.unknown()).default([])
   })).min(1),
   diagnostics: z.array(z.object({
@@ -59,7 +82,7 @@ export const RawFactsSchema = z.object({
     message: z.string(),
     phase: z.string(),
     severity: z.string()
-  })).default([])
+  }).passthrough()).default([])
 });
 
 export type RawFacts = z.infer<typeof RawFactsSchema>;

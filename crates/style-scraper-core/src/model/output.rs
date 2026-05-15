@@ -1,12 +1,13 @@
 use crate::model::diagnostics::Diagnostics;
 use crate::model::morphology::Morphology;
 use crate::model::raw::{
-    RawAccessibilityNode, RawComputedStyle, RawDomNode, RawFacts, RawLayoutBox, RawStateDelta,
-    ScreenshotFacts, ViewportFacts,
+    RawAccessibilityNode, RawAsset, RawComputedStyle, RawDomNode, RawFacts, RawLayoutBox,
+    RawPseudoElement, RawStateDelta, ScreenshotFacts, ViewportFacts,
 };
 use crate::model::tokens::DesignTokens;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StyleScraperOutput {
@@ -16,6 +17,9 @@ pub struct StyleScraperOutput {
     pub evidence: EvidenceBundle,
     pub tokens: DesignTokens,
     pub morphology: Morphology,
+    pub layout_constraints: Vec<LayoutConstraint>,
+    pub responsive: ResponsiveSummary,
+    pub reconstruction: ReconstructionModel,
     pub accessibility: AccessibilitySummary,
     pub diagnostics: Diagnostics,
     pub reproducibility: ReproducibilityManifest,
@@ -52,6 +56,12 @@ pub struct EvidenceBundle {
     #[serde(default)]
     pub screenshots: Vec<ScreenshotFacts>,
     #[serde(default)]
+    pub observed_pseudo_elements: Vec<RawPseudoElement>,
+    #[serde(default)]
+    pub assets: Vec<RawAsset>,
+    #[serde(default)]
+    pub stylesheet_provenance: Vec<serde_json::Value>,
+    #[serde(default)]
     pub observed_state_deltas: Vec<RawStateDelta>,
 }
 
@@ -68,6 +78,13 @@ impl EvidenceBundle {
                 .observed_accessibility
                 .extend(page.accessibility.nodes.clone());
             bundle.screenshots.extend(page.screenshots.clone());
+            bundle
+                .observed_pseudo_elements
+                .extend(page.pseudo_elements.clone());
+            bundle.assets.extend(page.assets.clone());
+            if let Some(provenance) = &page.stylesheet_provenance {
+                bundle.stylesheet_provenance.push(provenance.clone());
+            }
             bundle
                 .observed_state_deltas
                 .extend(page.state_deltas.clone());
@@ -143,4 +160,81 @@ pub struct ReproducibilityManifest {
     pub input_url: String,
     pub capture_hash: String,
     pub analysis_hash: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct LayoutConstraint {
+    pub id: String,
+    pub target_node_id: String,
+    pub constraint_type: String,
+    #[serde(default)]
+    pub values: BTreeMap<String, String>,
+    #[serde(default)]
+    pub evidence: Vec<String>,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ResponsiveSummary {
+    #[serde(default)]
+    pub viewports: Vec<String>,
+    #[serde(default)]
+    pub breakpoint_candidates: Vec<BreakpointCandidate>,
+    #[serde(default)]
+    pub component_variants: Vec<ComponentVariant>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct BreakpointCandidate {
+    pub width: u32,
+    pub evidence: String,
+    pub confidence: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ComponentVariant {
+    pub component_id: String,
+    pub viewport: String,
+    #[serde(default)]
+    pub changes: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ReconstructionModel {
+    pub page_model: ReconstructionPageModel,
+    #[serde(default)]
+    pub components: Vec<ReconstructionComponent>,
+    #[serde(default)]
+    pub asset_references: Vec<RawAsset>,
+    #[serde(default)]
+    pub state_specs: Vec<RawStateDelta>,
+    #[serde(default)]
+    pub confidence: f64,
+    #[serde(default)]
+    pub evidence: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ReconstructionPageModel {
+    pub layout: String,
+    #[serde(default)]
+    pub constraints: BTreeMap<String, LayoutConstraint>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+pub struct ReconstructionComponent {
+    pub id: String,
+    pub component_identity: String,
+    pub kind: String,
+    #[serde(default)]
+    pub tokens: BTreeMap<String, String>,
+    #[serde(default)]
+    pub states: BTreeMap<String, BTreeMap<String, String>>,
+    #[serde(default)]
+    pub a11y: BTreeMap<String, String>,
+    #[serde(default)]
+    pub layout_constraints: BTreeMap<String, LayoutConstraint>,
+    #[serde(default)]
+    pub evidence: Vec<String>,
+    pub confidence: f64,
 }

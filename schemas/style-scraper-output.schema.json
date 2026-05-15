@@ -10,6 +10,9 @@
     "evidence",
     "tokens",
     "morphology",
+    "layout_constraints",
+    "responsive",
+    "reconstruction",
     "accessibility",
     "diagnostics",
     "reproducibility"
@@ -32,11 +35,19 @@
         "observed_styles",
         "observed_layout",
         "observed_accessibility",
-        "screenshots"
-      ]
+        "screenshots",
+        "observed_pseudo_elements",
+        "assets",
+        "stylesheet_provenance",
+        "observed_state_deltas"
+      ],
+      "additionalProperties": true
     },
     "tokens": { "$ref": "w3c-tokens.schema.json" },
     "morphology": { "$ref": "morphology.schema.json" },
+    "layout_constraints": { "type": "array" },
+    "responsive": { "type": "object" },
+    "reconstruction": { "$ref": "reconstruction.schema.json" },
     "accessibility": { "type": "object" },
     "diagnostics": { "$ref": "diagnostics.schema.json" },
     "reproducibility": {

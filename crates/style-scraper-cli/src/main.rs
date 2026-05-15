@@ -44,11 +44,34 @@ fn run(cli: Cli) -> Result<(), CliError> {
             let config = CaptureConfig {
                 url: args.url.clone(),
                 viewport: args.viewport,
+                viewports: args.viewports,
                 color_scheme: args.color_scheme.as_str().to_string(),
                 states: args.states,
                 include_screenshots: args.include_screenshots,
-                wait: args.wait.as_str().to_string(),
+                screenshot: args.screenshot.as_str().to_string(),
+                wait: if args.safe_capture {
+                    "auto".to_string()
+                } else {
+                    args.wait.as_str().to_string()
+                },
+                wait_for_selector: args.wait_for_selector,
                 timeout_ms: args.timeout_ms,
+                navigation_timeout_ms: args.navigation_timeout_ms,
+                capture_timeout_ms: args.capture_timeout_ms,
+                stability_window_ms: args.stability_window_ms,
+                max_stability_wait_ms: args.max_stability_wait_ms,
+                ignore_networkidle_timeout: args.ignore_networkidle_timeout,
+                capture_on_timeout: args.capture_on_timeout || args.safe_capture,
+                strict_capture: args.strict_capture,
+                safe_capture: args.safe_capture,
+                resource_budget: args.resource_budget.as_str().to_string(),
+                block_third_party: args.block_third_party,
+                block_analytics: args.block_analytics,
+                block_media: args.block_media,
+                block_fonts: args.block_fonts,
+                block_images: args.block_images,
+                allow_active: args.allow_active,
+                click_selector: args.click_selector,
                 auth_state: args.auth_state,
                 screenshot_dir: args.screenshot_dir,
                 artifact_dir: Some(args.artifact_dir),
@@ -65,9 +88,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
                 deps_dir: Some(args.deps_dir),
                 playwright_browser: args.playwright_browser,
             };
-            let raw = BunProbeRunner::development_default()
-                .capture(&config)
-                .map_err(CliError::from_probe)?;
+            let raw = capture_with_optional_viewports(&config)?;
             let analysis = AnalysisConfig {
                 scope: args.scope.as_str().to_string(),
                 detail: args.detail.as_str().to_string(),
@@ -78,6 +99,9 @@ fn run(cli: Cli) -> Result<(), CliError> {
             match args.format {
                 args::OutputFormat::Json | args::OutputFormat::ReportJson => {
                     output::write_json(&output_model, &args.output, args.pretty)
+                }
+                args::OutputFormat::ReconstructionJson => {
+                    output::write_json(&output_model.reconstruction, &args.output, args.pretty)
                 }
                 args::OutputFormat::W3cTokens => {
                     output::write_json(&output_model.tokens, &args.output, args.pretty)
@@ -100,11 +124,34 @@ fn run(cli: Cli) -> Result<(), CliError> {
             let config = CaptureConfig {
                 url: args.url,
                 viewport: args.viewport,
+                viewports: args.viewports,
                 color_scheme: args.color_scheme.as_str().to_string(),
                 states: args.states,
                 include_screenshots: args.include_screenshots,
-                wait: args.wait.as_str().to_string(),
+                screenshot: args.screenshot.as_str().to_string(),
+                wait: if args.safe_capture {
+                    "auto".to_string()
+                } else {
+                    args.wait.as_str().to_string()
+                },
+                wait_for_selector: args.wait_for_selector,
                 timeout_ms: args.timeout_ms,
+                navigation_timeout_ms: args.navigation_timeout_ms,
+                capture_timeout_ms: args.capture_timeout_ms,
+                stability_window_ms: args.stability_window_ms,
+                max_stability_wait_ms: args.max_stability_wait_ms,
+                ignore_networkidle_timeout: args.ignore_networkidle_timeout,
+                capture_on_timeout: args.capture_on_timeout || args.safe_capture,
+                strict_capture: args.strict_capture,
+                safe_capture: args.safe_capture,
+                resource_budget: args.resource_budget.as_str().to_string(),
+                block_third_party: args.block_third_party,
+                block_analytics: args.block_analytics,
+                block_media: args.block_media,
+                block_fonts: args.block_fonts,
+                block_images: args.block_images,
+                allow_active: args.allow_active,
+                click_selector: args.click_selector,
                 auth_state: args.auth_state,
                 screenshot_dir: args.screenshot_dir,
                 artifact_dir: Some(args.artifact_dir),
@@ -121,9 +168,7 @@ fn run(cli: Cli) -> Result<(), CliError> {
                 deps_dir: Some(args.deps_dir),
                 playwright_browser: args.playwright_browser,
             };
-            let raw = BunProbeRunner::development_default()
-                .capture(&config)
-                .map_err(CliError::from_probe)?;
+            let raw = capture_with_optional_viewports(&config)?;
             let output_path = args.raw_output.as_deref().unwrap_or("-");
             output::write_json(&raw, output_path, args.pretty).map_err(CliError::output_failure)
         }
@@ -139,6 +184,9 @@ fn run(cli: Cli) -> Result<(), CliError> {
             match args.format {
                 args::OutputFormat::Json | args::OutputFormat::ReportJson => {
                     output::write_json(&output_model, &args.output, args.pretty)
+                }
+                args::OutputFormat::ReconstructionJson => {
+                    output::write_json(&output_model.reconstruction, &args.output, args.pretty)
                 }
                 args::OutputFormat::W3cTokens => {
                     output::write_json(&output_model.tokens, &args.output, args.pretty)
@@ -163,7 +211,8 @@ fn run(cli: Cli) -> Result<(), CliError> {
             match args.format {
                 args::OutputFormat::W3cTokens
                 | args::OutputFormat::Json
-                | args::OutputFormat::ReportJson => {
+                | args::OutputFormat::ReportJson
+                | args::OutputFormat::ReconstructionJson => {
                     output::write_json(&tokens, &args.output, args.pretty)
                 }
                 args::OutputFormat::CssVars => {
@@ -198,6 +247,11 @@ fn run(cli: Cli) -> Result<(), CliError> {
                     }]
                 }
             });
+            output::write_json(&payload, &args.output, args.pretty)
+                .map_err(CliError::output_failure)
+        }
+        Commands::DiffVisual(args) => {
+            let payload = diff_visual_payload(&args.before, &args.after, args.tolerance)?;
             output::write_json(&payload, &args.output, args.pretty)
                 .map_err(CliError::output_failure)
         }
@@ -276,6 +330,193 @@ fn run(cli: Cli) -> Result<(), CliError> {
 fn read_raw_facts(path: &str) -> Result<RawFacts, CliError> {
     let bytes = fs::read(path).map_err(CliError::generic)?;
     serde_json::from_slice(&bytes).map_err(CliError::schema_failure)
+}
+
+fn capture_with_optional_viewports(config: &CaptureConfig) -> Result<RawFacts, CliError> {
+    let runner = BunProbeRunner::development_default();
+    if config.viewports.is_empty() {
+        return runner.capture(config).map_err(CliError::from_probe);
+    }
+
+    let mut aggregate: Option<RawFacts> = None;
+    for viewport in &config.viewports {
+        let mut per_viewport = config.clone();
+        per_viewport.viewport = viewport.clone();
+        per_viewport.viewports = Vec::new();
+        let mut raw = runner
+            .capture(&per_viewport)
+            .map_err(CliError::from_probe)?;
+        if let Some(base) = &mut aggregate {
+            base.pages.append(&mut raw.pages);
+            base.diagnostics.append(&mut raw.diagnostics);
+        } else {
+            aggregate = Some(raw);
+        }
+    }
+
+    aggregate.ok_or_else(|| CliError::generic("--viewports did not contain any viewport values"))
+}
+
+fn diff_visual_payload(
+    before_path: &str,
+    after_path: &str,
+    tolerance: f64,
+) -> Result<serde_json::Value, CliError> {
+    let before = image::open(before_path)
+        .map_err(CliError::generic)?
+        .to_rgba8();
+    let after = image::open(after_path)
+        .map_err(CliError::generic)?
+        .to_rgba8();
+    let (before_width, before_height) = before.dimensions();
+    let (after_width, after_height) = after.dimensions();
+    if (before_width, before_height) != (after_width, after_height) {
+        let payload = json!({
+            "schema_version": "style-scraper-visual-diff.v1",
+            "visual_fidelity": {
+                "pixel_diff_ratio": 1.0,
+                "ssim": null,
+                "score": 0.0,
+                "verdict": "dimension-mismatch"
+            },
+            "dimensions": {
+                "before": { "width": before_width, "height": before_height },
+                "after": { "width": after_width, "height": after_height }
+            },
+            "diagnostics": [{
+                "code": "VISUAL_DIFF_DIMENSION_MISMATCH",
+                "message": "Images must have identical dimensions for deterministic pixel diff.",
+                "phase": "diff-visual",
+                "severity": "error"
+            }]
+        });
+        return Ok(payload);
+    }
+
+    let mut differing_pixels = 0_u64;
+    let mut min_x = before_width;
+    let mut min_y = before_height;
+    let mut max_x = 0_u32;
+    let mut max_y = 0_u32;
+    let channel_tolerance = (tolerance.clamp(0.0, 1.0) * 255.0).round() as i16;
+    for y in 0..before_height {
+        for x in 0..before_width {
+            let left = before.get_pixel(x, y).0;
+            let right = after.get_pixel(x, y).0;
+            let different = left
+                .iter()
+                .zip(right.iter())
+                .any(|(l, r)| (*l as i16 - *r as i16).abs() > channel_tolerance);
+            if different {
+                differing_pixels += 1;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+    }
+
+    let total_pixels = u64::from(before_width) * u64::from(before_height);
+    let pixel_diff_ratio = if total_pixels == 0 {
+        0.0
+    } else {
+        differing_pixels as f64 / total_pixels as f64
+    };
+    let ssim = compute_global_ssim(&before, &after);
+    let score = ((1.0 - pixel_diff_ratio) * 0.45 + ssim * 0.55).clamp(0.0, 1.0);
+    let verdict = if pixel_diff_ratio <= 0.01 && ssim >= 0.985 {
+        "near-identical"
+    } else if pixel_diff_ratio <= 0.05 && ssim >= 0.95 {
+        "high"
+    } else if pixel_diff_ratio <= 0.15 && ssim >= 0.85 {
+        "medium"
+    } else {
+        "low"
+    };
+    let changed_bounds = if differing_pixels == 0 {
+        serde_json::Value::Null
+    } else {
+        json!({
+            "x": min_x,
+            "y": min_y,
+            "width": max_x.saturating_sub(min_x) + 1,
+            "height": max_y.saturating_sub(min_y) + 1
+        })
+    };
+
+    Ok(json!({
+        "schema_version": "style-scraper-visual-diff.v1",
+        "visual_fidelity": {
+            "pixel_diff_ratio": pixel_diff_ratio,
+            "ssim": ssim,
+            "score": score,
+            "verdict": verdict,
+            "thresholds": {
+                "pixel_diff_ratio_high_max": 0.05,
+                "ssim_high_min": 0.95
+            }
+        },
+        "dimensions": {
+            "width": before_width,
+            "height": before_height
+        },
+        "largest_changed_region": changed_bounds,
+        "anti_aliasing_tolerance": tolerance,
+        "diagnostics": [{
+            "code": "GLOBAL_SSIM_IMPLEMENTED",
+            "message": "Global luminance SSIM is implemented as a deterministic fidelity metric; local windowed SSIM can be added later for regional scoring.",
+            "phase": "diff-visual",
+            "severity": "info"
+        }]
+    }))
+}
+
+fn compute_global_ssim(
+    before: &image::ImageBuffer<image::Rgba<u8>, Vec<u8>>,
+    after: &image::ImageBuffer<image::Rgba<u8>, Vec<u8>>,
+) -> f64 {
+    let mut left_values = Vec::with_capacity(before.len() / 4);
+    let mut right_values = Vec::with_capacity(after.len() / 4);
+    for (left, right) in before.pixels().zip(after.pixels()) {
+        left_values.push(luminance(left.0));
+        right_values.push(luminance(right.0));
+    }
+    if left_values.is_empty() {
+        return 1.0;
+    }
+    let n = left_values.len() as f64;
+    let left_mean = left_values.iter().sum::<f64>() / n;
+    let right_mean = right_values.iter().sum::<f64>() / n;
+    let mut left_var = 0.0;
+    let mut right_var = 0.0;
+    let mut covariance = 0.0;
+    for (left, right) in left_values.iter().zip(right_values.iter()) {
+        left_var += (left - left_mean).powi(2);
+        right_var += (right - right_mean).powi(2);
+        covariance += (left - left_mean) * (right - right_mean);
+    }
+    let denominator_n = (n - 1.0).max(1.0);
+    left_var /= denominator_n;
+    right_var /= denominator_n;
+    covariance /= denominator_n;
+
+    let c1 = (0.01_f64).powi(2);
+    let c2 = (0.03_f64).powi(2);
+    let numerator = (2.0 * left_mean * right_mean + c1) * (2.0 * covariance + c2);
+    let denominator = (left_mean.powi(2) + right_mean.powi(2) + c1) * (left_var + right_var + c2);
+    if denominator == 0.0 {
+        1.0
+    } else {
+        (numerator / denominator).clamp(0.0, 1.0)
+    }
+}
+
+fn luminance(pixel: [u8; 4]) -> f64 {
+    let r = f64::from(pixel[0]) / 255.0;
+    let g = f64::from(pixel[1]) / 255.0;
+    let b = f64::from(pixel[2]) / 255.0;
+    0.2126 * r + 0.7152 * g + 0.0722 * b
 }
 
 #[derive(Debug)]

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Never Stable Fixture</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: system-ui, sans-serif;
+        background: #f8fafc;
+      }
+
+      .card {
+        width: 320px;
+        padding: 24px;
+        border-radius: 12px;
+        background: white;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.16);
+      }
+
+      button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Renderable before quiet</h1>
+      <p>This fixture mutates forever so a strict stability window is unreachable.</p>
+      <button type="button">Capture anyway</button>
+      <span id="ticker" hidden>0</span>
+    </main>
+    <script>
+      let count = 0;
+      setInterval(() => {
+        document.getElementById("ticker").textContent = String(++count);
+        document.body.dataset.tick = String(count);
+      }, 100);
+    </script>
+  </body>
+</html>

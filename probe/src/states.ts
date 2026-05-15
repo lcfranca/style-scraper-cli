@@ -24,13 +24,27 @@ const TRACKED_PROPERTIES = [
 export async function captureStateDeltas(
   page: Page,
   states: string[],
-  options: { safeInteractions: boolean; noClick: boolean; noFormSubmit: boolean }
+  options: {
+    safeInteractions: boolean;
+    noClick: boolean;
+    noFormSubmit: boolean;
+    allowActive: boolean;
+    clickSelector?: string;
+  }
 ): Promise<StateDelta[]> {
   if (states.length === 0 || !options.safeInteractions) {
     return [];
   }
 
-  const allowedStates = states.filter((state) => ["hover", "focus", "focus-visible"].includes(state));
+  const allowedStates = states.filter((state) => {
+    if (["hover", "focus", "focus-visible", "disabled"].includes(state)) {
+      return true;
+    }
+    if (state === "active") {
+      return options.allowActive;
+    }
+    return false;
+  });
   if (allowedStates.length === 0) {
     return [];
   }
@@ -50,25 +64,45 @@ export async function captureStateDeltas(
           || role === "link"
           || role === "tab"
           || role === "menuitem";
+        const disabled = (element as HTMLButtonElement).disabled === true
+          || element.getAttribute("aria-disabled") === "true";
         return interactive ? {
           index,
           nodeId: `node_${index + 1}`,
-          signature: role ? `${tag}[role=${role}]` : tag
+          signature: role ? `${tag}[role=${role}]` : tag,
+          disabled
         } : undefined;
       })
       .filter(Boolean)
-      .slice(0, 20) as Array<{ index: number; nodeId: string; signature: string }>;
+      .slice(0, 20) as Array<{ index: number; nodeId: string; signature: string; disabled: boolean }>;
   });
 
   const deltas: StateDelta[] = [];
   for (const target of targets) {
     for (const state of allowedStates) {
+      if (state === "disabled") {
+        if (target.disabled) {
+          deltas.push({
+            state,
+            target_node_id: target.nodeId,
+            target_signature: target.signature,
+            changed_properties: {
+              disabled: { before: "false", after: "true" }
+            },
+            safe_interaction: true
+          });
+        }
+        continue;
+      }
       const locator = page.locator("*").nth(target.index);
       const before = await readTrackedStyle(page, target.index);
       if (state === "hover") {
-        await locator.hover({ trial: false }).catch(() => undefined);
+        await locator.hover({ trial: false, timeout: 750 }).catch(() => undefined);
+      } else if (state === "active" && activeAllowed(target.signature, options)) {
+        await locator.hover({ trial: false, timeout: 750 }).catch(() => undefined);
+        await page.mouse.down().catch(() => undefined);
       } else {
-        await locator.focus().catch(() => undefined);
+        await locator.focus({ timeout: 750 }).catch(() => undefined);
       }
       const after = await readTrackedStyle(page, target.index);
       const changed_properties = diffStyles(before, after);
@@ -80,6 +114,9 @@ export async function captureStateDeltas(
           changed_properties,
           safe_interaction: true
         });
+      }
+      if (state === "active") {
+        await page.mouse.up().catch(() => undefined);
       }
       await page.mouse.move(0, 0).catch(() => undefined);
     }
@@ -121,4 +158,14 @@ function diffStyles(
 
 function toSnakeCase(value: string): string {
   return value.replaceAll("-", "_");
+}
+
+function activeAllowed(
+  signature: string,
+  options: { noClick: boolean; noFormSubmit: boolean; clickSelector?: string }
+): boolean {
+  if (options.noFormSubmit) {
+    return signature !== "button" && !signature.includes("submit");
+  }
+  return !options.noClick || Boolean(options.clickSelector);
 }

@@ -43,6 +43,14 @@ pub fn analyze_raw_facts(
     let tokens = emit::w3c_tokens::infer_design_tokens(&raw);
     let gestalt_clusters = geometry::gestalt::cluster_layout(&raw);
     let morphology = morphology::reconcile::infer_morphology(&raw, &tokens, &gestalt_clusters);
+    let layout_constraints = geometry::constraints::infer_layout_constraints(&raw);
+    let responsive = emit::reconstruction::responsive_summary(&raw);
+    let reconstruction = emit::reconstruction::build_reconstruction_model(
+        &raw,
+        &tokens,
+        &morphology,
+        &layout_constraints,
+    );
     let diagnostics = Diagnostics::from_raw(&raw, &tokens, &morphology);
     let evidence = EvidenceBundle::from_raw(&raw);
     let accessibility = AccessibilitySummary::from_raw(&raw);
@@ -70,6 +78,9 @@ pub fn analyze_raw_facts(
         evidence,
         tokens,
         morphology,
+        layout_constraints,
+        responsive,
+        reconstruction,
         accessibility,
         diagnostics,
         reproducibility: ReproducibilityManifest {

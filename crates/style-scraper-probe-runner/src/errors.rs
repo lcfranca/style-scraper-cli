@@ -18,7 +18,7 @@ pub enum ProbeRunnerError {
         dependency: &'static str,
         message: String,
     },
-    #[error("Bun probe timed out after {timeout_ms}ms: {stderr}")]
+    #[error("Bun probe watchdog timed out after {timeout_ms}ms: {stderr}")]
     Timeout { timeout_ms: u64, stderr: String },
     #[error("failed to spawn Bun probe: {0}")]
     SpawnFailed(String),
@@ -38,7 +38,7 @@ impl ProbeRunnerError {
             Self::BrowserNotInstalled => "BROWSER_NOT_INSTALLED",
             Self::UnsupportedAutoInstall { .. } => "UNSUPPORTED_AUTO_INSTALL",
             Self::DependencyInstallFailed { .. } => "DEPENDENCY_INSTALL_FAILED",
-            Self::Timeout { .. } => "NAVIGATION_TIMEOUT",
+            Self::Timeout { .. } => "PROBE_WATCHDOG_TIMEOUT",
             Self::SpawnFailed(_) => "PROBE_SPAWN_FAILED",
             Self::ProbeFailed { .. } => "PROBE_FAILURE",
             Self::InvalidJson(_) => "PROBE_INVALID_JSON",

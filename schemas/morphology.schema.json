@@ -23,6 +23,7 @@
         "signature": { "type": "string" },
         "evidence": { "$ref": "#/$defs/evidence" },
         "tokens": { "type": "object" },
+        "states": { "type": "object" },
         "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
@@ -45,7 +46,9 @@
         "aom_roles": { "type": "array", "items": { "type": "string" } },
         "layout_box_ids": { "type": "array", "items": { "type": "string" } },
         "computed_style_ids": { "type": "array", "items": { "type": "string" } },
-        "gestalt": { "type": "object" }
+        "gestalt": { "type": "object" },
+        "pseudo_element_ids": { "type": "array", "items": { "type": "string" } },
+        "asset_ids": { "type": "array", "items": { "type": "string" } }
       }
     }
   },

@@ -27,6 +27,8 @@ pub struct AtomicUnit {
     pub evidence: MorphologyEvidence,
     #[serde(default)]
     pub tokens: BTreeMap<String, String>,
+    #[serde(default)]
+    pub states: BTreeMap<String, BTreeMap<String, String>>,
     pub confidence: f64,
 }
 
@@ -53,6 +55,10 @@ pub struct MorphologyEvidence {
     pub computed_style_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gestalt: Option<GestaltEvidence>,
+    #[serde(default)]
+    pub pseudo_element_ids: Vec<String>,
+    #[serde(default)]
+    pub asset_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

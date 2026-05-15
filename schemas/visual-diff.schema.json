@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/visual-diff.schema.json",
+  "title": "Style Scraper Visual Diff",
+  "type": "object",
+  "required": ["schema_version", "visual_fidelity"],
+  "properties": {
+    "schema_version": { "const": "style-scraper-visual-diff.v1" },
+    "visual_fidelity": {
+      "type": "object",
+      "required": ["pixel_diff_ratio", "score", "verdict"],
+      "properties": {
+        "pixel_diff_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "ssim": { "type": ["number", "null"] },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "verdict": { "type": "string" },
+        "thresholds": { "type": "object" }
+      }
+    },
+    "dimensions": { "type": "object" },
+    "largest_changed_region": { "type": ["object", "null"] },
+    "anti_aliasing_tolerance": { "type": "number", "minimum": 0, "maximum": 1 },
+    "diagnostics": { "type": "array" }
+  }
+}

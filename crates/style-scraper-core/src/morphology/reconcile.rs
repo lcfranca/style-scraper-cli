@@ -9,7 +9,7 @@ pub fn infer_morphology(
     clusters: &[GestaltCluster],
 ) -> Morphology {
     let atoms = atomic::infer_atoms(raw, tokens);
-    let molecules = molecule::infer_molecules(&atoms, clusters);
+    let molecules = molecule::infer_molecules(raw, &atoms, clusters);
     let organisms = organism::infer_organisms(raw);
     let pages = organism::page_groups(raw);
 

@@ -22,6 +22,18 @@ pub struct DiagnosticMessage {
     pub message: String,
     pub phase: String,
     pub severity: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recoverable: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub recommended_action: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timings: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completed: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_after: Option<String>,
 }
 
 impl Diagnostics {
@@ -34,6 +46,12 @@ impl Diagnostics {
                 message: diagnostic.message.clone(),
                 phase: diagnostic.phase.clone(),
                 severity: diagnostic.severity.clone(),
+                recoverable: diagnostic.recoverable,
+                recommended_action: diagnostic.recommended_action.clone(),
+                timings: diagnostic.timings.clone(),
+                completed: diagnostic.completed.clone(),
+                http_status: diagnostic.http_status,
+                retry_after: diagnostic.retry_after.clone(),
             })
             .collect();
 

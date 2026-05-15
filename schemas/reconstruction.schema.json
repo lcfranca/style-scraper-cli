@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://style-scraper.local/schemas/reconstruction.schema.json",
+  "title": "Style Scraper Reconstruction Model",
+  "type": "object",
+  "required": ["page_model", "components", "confidence"],
+  "properties": {
+    "page_model": {
+      "type": "object",
+      "required": ["layout", "constraints"],
+      "properties": {
+        "layout": { "type": "string" },
+        "constraints": { "type": "object" }
+      }
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "component_identity", "kind", "tokens", "states", "confidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "component_identity": { "type": "string" },
+          "kind": { "type": "string" },
+          "tokens": { "type": "object", "additionalProperties": { "type": "string" } },
+          "states": { "type": "object" },
+          "a11y": { "type": "object" },
+          "layout_constraints": { "type": "object" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "asset_references": { "type": "array" },
+    "state_specs": { "type": "array" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  }
+}
